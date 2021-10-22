@@ -1,18 +1,17 @@
 version: '3'
 services:
-    cache:
-      image: redis:alpine
-      ports:
-         - "6379:6379"
-    memcached:
-        image: memcached:${MEMCACHED_VERSION}
-        container_name: ${MEMCACHED_HOST}
+    redis:
+        image: redis:latest
         ports:
-            - 11212:11211
+            - "127.0.0.1:${REDIS_PORT}:6379"
+    memcached:
+        image: memcached:latest
+        ports:
+            - "127.0.0.1:${MEMCACHED_PORT}:11211"
     nginx-fozzy:
         image: nginx:latest
         ports:
-            - "80:80"
+            - "${NGINX_HOST_PORT}:80"
         volumes:
             - ./www/www.conf:/etc/php-fpm.d/www.conf
             - ./hosts:/etc/nginx/conf.d
@@ -24,6 +23,8 @@ services:
           retries: 5
           start_period: 5s
           timeout: 10s
+        networks:
+            - front_net
         links:
             - php
     php:
@@ -39,21 +40,30 @@ services:
         volumes:
             - ./www/www.conf:/usr/local/etc/php-fpm.d/www.conf
             - ./www:/var/www
+        networks:
+            - back_net
     mysql-fozzy:
         image: mysql
         ports:
-            - "3306:3306"
+            - "${MYSQL_HOST_PORT}:3306"
         healthcheck:
           test: "/usr/bin/mysql --user=root --password=password --execute \"SHOW DATABASES;\""
           interval: 2s
           timeout: 20s
           retries: 10
         volumes:
-#         - /etc/mysql:/etc/mysql
          - ./logs/mysql:/var/log/mysql
          - ./mysql:/var/lib/mysql
          - ./mysql-files:/var/lib/mysql-files
          - ./data:/docker-entrypoint-initdb.d
         environment:
-            MYSQL_ROOT_PASSWORD: password
-            MYSQL_DATABASE: sait
+            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+            MYSQL_DATABASE: ${MYSQL_DATABASE}
+        networks:
+            - front_net
+            - back_net
+networks:
+    front_net:
+        external: true
+    back_net:
+        external: true
