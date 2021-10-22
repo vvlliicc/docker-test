@@ -1,0 +1,59 @@
+version: '3'
+services:
+    cache:
+      image: redis:alpine
+      ports:
+         - "6379:6379"
+    memcached:
+        image: memcached:${MEMCACHED_VERSION}
+        container_name: ${MEMCACHED_HOST}
+        ports:
+            - 11212:11211
+    nginx-fozzy:
+        image: nginx:latest
+        ports:
+            - "80:80"
+        volumes:
+            - ./www/www.conf:/etc/php-fpm.d/www.conf
+            - ./hosts:/etc/nginx/conf.d
+            - ./www:/var/www
+            - ./logs/nginx:/var/log/nginx
+        healthcheck:
+          test: curl --fail http://localhost:80 || exit 1
+          interval: 10s
+          retries: 5
+          start_period: 5s
+          timeout: 10s
+        links:
+            - php
+    php:
+        build: ./images/php
+        healthcheck:
+          test: curl --fail -I http://localhost:80/status || exit 1
+          interval: 1s
+          retries: 5
+          start_period: 2s
+          timeout: 1s
+        links:
+            - mysql-fozzy
+        volumes:
+            - ./www/www.conf:/usr/local/etc/php-fpm.d/www.conf
+            - ./www:/var/www
+    mysql-fozzy:
+        image: mysql
+        ports:
+            - "3306:3306"
+        healthcheck:
+          test: "/usr/bin/mysql --user=root --password=password --execute \"SHOW DATABASES;\""
+          interval: 2s
+          timeout: 20s
+          retries: 10
+        volumes:
+#         - /etc/mysql:/etc/mysql
+         - ./logs/mysql:/var/log/mysql
+         - ./mysql:/var/lib/mysql
+         - ./mysql-files:/var/lib/mysql-files
+         - ./data:/docker-entrypoint-initdb.d
+        environment:
+            MYSQL_ROOT_PASSWORD: password
+            MYSQL_DATABASE: sait
