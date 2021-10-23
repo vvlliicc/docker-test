@@ -1,14 +1,18 @@
 version: '3'
 services:
     redis:
-      image: redis:alpine
-      ports:
-         - "6379:6379"
+        image: redis:alpine
+        ports:
+           - "6379:6379"
+        healthcheck:
+            test: ["CMD", "redis-cli","ping"]
+            interval: 2s
+            timeout: 20s
     memcached:
         image: memcached:${MEMCACHED_VERSION}
         container_name: ${MEMCACHED_HOST}
         ports:
-            - 11212:11211
+            - "11211:11211"
     nginx-fozzy:
         image: nginx:latest
         ports:
@@ -19,11 +23,11 @@ services:
             - ./www:/var/www
             - ./logs/nginx:/var/log/nginx
         healthcheck:
-          test: curl --fail http://localhost:80 || exit 1
-          interval: 10s
-          retries: 5
-          start_period: 5s
-          timeout: 10s
+            test: curl --fail http://localhost:80 || exit 1
+            interval: 10s
+            retries: 5
+            start_period: 5s
+            timeout: 10s
         links:
             - php
     php:
@@ -33,19 +37,18 @@ services:
         volumes:
             - ./www/www.conf:/usr/local/etc/php-fpm.d/www.conf
             - ./www:/var/www
+        ports:
+            - "9000:9000"
     mysql-fozzy:
         image: mysql
         ports:
             - "3306:3306"
         healthcheck:
-          test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
- #         test: "/usr/bin/mysql status"
- #         test: "/usr/bin/mysql --user=root --password=password --execute \"SHOW DATABASES;\""
-          interval: 2s
-          timeout: 20s
-          retries: 10
+            test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+            interval: 2s
+            timeout: 20s
+            retries: 10
         volumes:
-#         - /etc/mysql:/etc/mysql
          - ./logs/mysql:/var/log/mysql
          - ./mysql:/var/lib/mysql
          - ./mysql-files:/var/lib/mysql-files
