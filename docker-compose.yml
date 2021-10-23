@@ -1,17 +1,18 @@
 version: '3'
 services:
     redis:
-        image: redis:latest
-        ports:
-            - "127.0.0.1:${REDIS_PORT}:6379"
+      image: redis:alpine
+      ports:
+         - "6379:6379"
     memcached:
-        image: memcached:latest
+        image: memcached:${MEMCACHED_VERSION}
+        container_name: ${MEMCACHED_HOST}
         ports:
-            - "127.0.0.1:${MEMCACHED_PORT}:11211"
+            - 11212:11211
     nginx-fozzy:
         image: nginx:latest
         ports:
-            - "${NGINX_HOST_PORT}:80"
+            - "80:80"
         volumes:
             - ./www/www.conf:/etc/php-fpm.d/www.conf
             - ./hosts:/etc/nginx/conf.d
@@ -23,35 +24,26 @@ services:
           retries: 5
           start_period: 5s
           timeout: 10s
-        networks:
-            - front_net
         links:
             - php
     php:
         build: ./images/php
-        healthcheck:
-          test: curl --fail -I http://localhost:80/status || exit 1
-          interval: 1s
-          retries: 5
-          start_period: 2s
-          timeout: 1s
         links:
             - mysql-fozzy
         volumes:
             - ./www/www.conf:/usr/local/etc/php-fpm.d/www.conf
             - ./www:/var/www
-        networks:
-            - back_net
     mysql-fozzy:
         image: mysql
         ports:
-            - "${MYSQL_HOST_PORT}:3306"
+            - "3306:3306"
         healthcheck:
           test: "/usr/bin/mysql --user=root --password=password --execute \"SHOW DATABASES;\""
           interval: 2s
           timeout: 20s
           retries: 10
         volumes:
+#         - /etc/mysql:/etc/mysql
          - ./logs/mysql:/var/log/mysql
          - ./mysql:/var/lib/mysql
          - ./mysql-files:/var/lib/mysql-files
@@ -59,11 +51,3 @@ services:
         environment:
             MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
             MYSQL_DATABASE: ${MYSQL_DATABASE}
-        networks:
-            - front_net
-            - back_net
-networks:
-    front_net:
-        external: true
-    back_net:
-        external: true
